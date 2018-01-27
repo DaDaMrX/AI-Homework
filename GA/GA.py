@@ -2,16 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-class Agent:
-    def __init__(self, distance, solution=None):
+class Gene:
+    def __init__(self, distance, path=None):
         self.distance = distance
         self.n_cities = len(distance)
 
-        if solution is None:
-            self.path = np.arange(1, self.n_cities + 1)
+        if path is None:
+            # self.path = list(range(1, self.n_cities + 1))
+            self.path = list(range(self.n_cities))
             np.random.shuffle(self.path)
         else:
-            self.path = solution.copy()  # Must be the copy
+            self.path = path.copy()  # Must be the copy
 
         self.length = self._calc_length(self.path)
 
@@ -34,14 +35,14 @@ class GA:
                 vector = (cities[i][0] - cities[j][0], cities[i][1] - cities[j][1])
                 self.distance[i, j] = np.linalg.norm(vector)
 
-        self.n_agents = n_genes
+        self.n_genes = n_genes
         self.n_parents = n_parents
         self.n_children = n_children
         self.recombination_prob = recombination_prob
         self.mutation_prob = mutation_prob
         self.mutation_times = mutation_times
 
-        self.agents = [Agent(self.distance) for i in range(self.n_agents)]
+        self.genes = [Gene(self.distance) for i in range(self.n_genes)]
 
     def adjust(self, path1, path2):
         # this function try to check and fix two solution and return the right ans
@@ -68,26 +69,26 @@ class GA:
                 continue
         return p
 
-    def generate(self, agent1, agent2):
+    def generate(self, gene1, gene2):
         if np.random.random() < self.recombination_prob:
-            path1 = list(agent1.path.copy())
-            path2 = list(agent2.path.copy())
-            pos1, pos2 = sorted(np.random.choice(range(agent1.n_cities - 1), size=2, replace=False))
+            path1 = list(gene1.path.copy())
+            path2 = list(gene2.path.copy())
+            pos1, pos2 = sorted(np.random.choice(range(gene1.n_cities - 1), size=2, replace=False))
             path1[pos1 + 1: pos2 + 1], path2[pos1 + 1: pos2 + 1] = path2[pos1 + 1: pos2 + 1], path1[pos1 + 1: pos2 + 1]
             path1 = self.adjust(path1, path2)
             path2 = self.adjust(path2, path1)
         else:
-            path1 = list(range(agent1.n_cities))
+            path1 = list(range(gene1.n_cities))
             np.random.shuffle(path1)
-            path2 = list(range(agent1.n_cities))
+            path2 = list(range(gene1.n_cities))
             np.random.shuffle(path2)
 
         if np.random.random() < self.mutation_prob:
             for i in range(1, self.mutation_times + 1):
                 if np.random.random() < 1 / i:
-                    x1, y1 = np.random.choice(range(agent1.n_cities), size=2, replace=False)
+                    x1, y1 = np.random.choice(range(gene1.n_cities), size=2, replace=False)
                     path1[x1], path1[y1] = path1[y1], path1[x1]
-                    x2, y2 = np.random.choice(range(agent1.n_cities), size=2, replace=False)
+                    x2, y2 = np.random.choice(range(gene1.n_cities), size=2, replace=False)
                     path2[x2], path2[y2] = path2[y2], path2[x2]
 
         return path1, path2
@@ -97,14 +98,14 @@ class GA:
         for i in range(n_children // 2):
             f1, f2 = np.random.choice(parents, size=2, replace=False)
             embryo1, embryo2 = self.generate(f1, f2)
-            children.append(Agent(self.distance, embryo1))
-            children.append(Agent(self.distance, embryo2))
+            children.append(Gene(self.distance, embryo1))
+            children.append(Gene(self.distance, embryo2))
         return children
 
-    def select(self, agents, number):
-        n_agents = len(agents)
-        agents = sorted(agents, key=lambda x: x.length)
-        sum_length = sum((agent.length for agent in agents))
+    def select(self, genes, number):
+        n_genes = len(genes)
+        genes = sorted(genes, key=lambda x: x.length)
+        sum_length = sum((agent.length for agent in genes))
 
         parents = []
         exist = []
@@ -112,63 +113,73 @@ class GA:
         index = 0
         while True:
             god = np.random.uniform()
-            if god > (agents[index].length / sum_length):
+            if god > (genes[index].length / sum_length):
                 if index in exist:
-                    index = (index + 1) % n_agents
+                    index = (index + 1) % n_genes
                     continue
                 c_number += 1
-                parents.append(agents[index])
+                parents.append(genes[index])
                 exist.append(index)
             if c_number > number:
                 break
-            index = (index + 1) % len(agents)
+            index = (index + 1) % len(genes)
 
         return parents
 
-    def evelove_once(self):
-        parents = self.select(self.agents, self.n_parents)
-        self.agents += self.generate_children(parents, self.n_children)
-        self.agents = self.select(self.agents, self.n_agents)
-        best_agant = max(self.agents, key=lambda x: x.length)
-        return best_agant.length, best_agant.path
+    def evolve_once(self):
+        parents = self.select(self.genes, self.n_parents)
+        self.genes += self.generate_children(parents, self.n_children)
+        self.genes = self.select(self.genes, self.n_genes)
+        best_gene = max(self.genes, key=lambda x: x.length)
+        return best_gene.length, best_gene.path
 
-    def evelove(self, max_iter, verbose=None, plot_iter=None):
-        self.agents = [Agent(self.distance) for i in range(self.n_agents)]
-        best_length = float('inf')
-        best_path = None
-        length_list = []
-        for step in range(max_iter):
-            length, path = self.evelove_once()
+    def evolve(self, max_iter, verbose=None, plot_interval=None):
+        self.genes = [Gene(self.distance) for i in range(self.n_genes)]
+        best_gene = max(self.genes, key=lambda x: x.length)
+        best_length, best_path = best_gene.length, best_gene.path
+        length_list = [best_length]
+        if verbose is not None:
+            self.log(0, best_length, best_path)
+        if plot_interval:
+            self.plot_path(0, best_length, best_path)
+
+        for i in range(1, max_iter + 1):
+            length, path = self.evolve_once()
             length_list.append(length)
+
             if length < best_length:
                 best_length, best_path = length, path
                 if verbose == 1:
-                    print(f'[Update] Iterate: {step:2d}, '
-                          f'Best length: {best_length:.4f}, '
-                          f'Best path: {path}')
+                    self.log(i, best_length, best_path)
 
             if verbose == 2:
-                print('Iterate: {step:2d}, '
-                      'Best length: {best_length:.4f}, '
-                      'Best path:', path)
+                self.log(i, best_length, best_path)
+            if plot_interval is not None and i % plot_interval == 0:
+                self.plot_path(i, best_length, best_path)
 
-            if plot_iter is not None and step % plot_iter == 0:
-                for i in range(-1, self.n_cities - 1):
-                    x = [cities[best_path[i] - 1][0], cities[best_path[i + 1] - 1][0]]
-                    y = [cities[best_path[i] - 1][1], cities[best_path[i + 1] - 1][1]]
-                    plt.plot(x, y)
-                plt.title(f'Iterate: {step},  Path length: {best_length:.4f}')
-                plt.show()
-
-        if plot_iter is not None:
-            X = list(range(1, max_iter + 1))
-            plt.plot(X, length_list)
-            plt.xlabel('Iterations')
-            plt.ylabel('Path length')
-            plt.title(f'Generation Algorithm\nFinal length: {best_length:.4f}')
-            plt.show()
-
+        if plot_interval is not None:
+            self.plot_result(max_iter, length_list)
         return best_length, best_path
+
+    def log(self, iter_time, length, path):
+        print(f'Iterate: {iter_time:2d}, Length: {length:.4f}, Path: {path}')
+
+    def plot_path(self, iter_time, length, path):
+        for i in range(-1, self.n_cities - 1):
+            x = [self.cities[path[i] - 1][0], self.cities[path[i + 1] - 1][0]]
+            y = [self.cities[path[i] - 1][1], self.cities[path[i + 1] - 1][1]]
+            plt.plot(x, y)
+        plt.title(f'Iterate: {iter_time},  Path length: {length:.4f}')
+        plt.show()
+
+    def plot_result(self, max_iter, length_list):
+        x = list(range(max_iter + 1))
+        plt.plot(x, length_list)
+        plt.xlabel('Iterations')
+        plt.ylabel('Path length')
+        best_length = max(length_list)
+        plt.title(f'Generation Algorithm\nFinal length: {best_length:.4f}')
+        plt.show()
 
 
 def load_data(file):
@@ -184,4 +195,4 @@ if __name__ == '__main__':
     cities = load_data('berlin52.tsp')
     ga = GA(cities, n_genes=100, n_parents=20, n_children=200, recombination_prob=0.9,
             mutation_prob=1, mutation_times=10)
-    ga.evelove(max_iter=1000, verbose=1, plot_iter=50)
+    ga.evolve(max_iter=100, verbose=1, plot_interval=10)

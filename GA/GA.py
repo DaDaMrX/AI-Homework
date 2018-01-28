@@ -107,7 +107,7 @@ class GA:
         if verbose is not None:
             self._log(0, best_length, best_path)
         if plot_interval:
-            self.plot_path(0, best_length, best_path)
+            self._plot_path(0, best_length, best_path)
 
         for i in range(1, max_iter + 1):
             length, path = self.evolve_once()
@@ -120,44 +120,40 @@ class GA:
 
             if verbose == 2:
                 self._log(i, best_length, best_path)
-            if plot_interval is not None\
-                    and plot_interval > 0\
-                    and i % plot_interval == 0:
-                plot_path(i, best_length, best_path, self.cities)
+            if plot_interval and i % plot_interval == 0:
+                self._plot_path(i, best_length, best_path)
 
         if plot_interval is not None:
-            plot_result(length_list, iter_start=0)
+            self._plot_result(length_list)
         return best_length, best_path
 
     def _log(self, iter_time, length, path):
         print(f'Iterate: {iter_time}, Length: {length:.4f}, Path: {path}')
 
+    def _plot_path(self, iter_time, length, path):
+        for i in range(-1, self.n_cities - 1):
+            x = [self.cities[path[i]][0], self.cities[path[i + 1]][0]]
+            y = [self.cities[path[i]][1], self.cities[path[i + 1]][1]]
+            plt.plot(x, y)
+        plt.title(f'Iterate: {iter_time},  Path length: {length:.4f}')
+        plt.show()
 
-def plot_path(iter_time, length, path, cities):
-    n_cities = len(cities)
-    for i in range(-1, n_cities - 1):
-        x = [cities[path[i]][0], cities[path[i + 1]][0]]
-        y = [cities[path[i]][1], cities[path[i + 1]][1]]
-        plt.plot(x, y)
-    plt.title(f'Iterate: {iter_time},  Path length: {length:.4f}')
-    plt.show()
-
-
-def plot_result(length_list, iter_start=1):
-    n_points = len(length_list)
-    x = list(range(iter_start, iter_start + n_points))
-    plt.plot(x, length_list)
-    plt.xlabel('Iterations')
-    plt.ylabel('Path length')
-    best_length = min(length_list)
-    plt.title(f'Final length: {best_length:.4f}')
-    plt.show()
+    def _plot_result(self, length_list):
+        x = list(range(len(length_list)))
+        plt.plot(x, length_list)
+        plt.xlabel('Iterations')
+        plt.ylabel('Path length')
+        best_length = min(length_list)
+        plt.title(f'Final length: {best_length:.4f}')
+        plt.show()
 
 
 def load_data(file):
     with open(file, 'r') as f:
         lines = f.readlines()
-    lines = list(map(lambda c: c.split(' '), lines[6:]))
+    lines = lines[6:]
+    lines = lines[:-1]
+    lines = [c.split(' ') for c in lines]
     cities = [(float(c[1]), float(c[2])) for c in lines]
     return cities
 
@@ -166,4 +162,4 @@ if __name__ == '__main__':
     cities = load_data('berlin52.tsp')
     ga = GA(cities, n_genes=100, n_children=100, alpha=50,
             recombination_prob=0.9, mutation_prob=1)
-    ga.evolve(max_iter=500, verbose=1, plot_interval=0)
+    ga.evolve(max_iter=500, verbose=1, plot_interval=50)

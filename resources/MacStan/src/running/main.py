@@ -55,7 +55,7 @@ def optimize_network(runStore, freq, net, steps):
         aligned_step = '{:>5}'.format(step)
         sys.stdout.write(f"Step: {aligned_step} Time: {time.time() - old:.2}\r")
         old = time.time()
-        net.update()
+        net.update_once()
 
         if step % freq == 0:
             runStore.add_data_point(net.get_net_state())

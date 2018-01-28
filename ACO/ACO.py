@@ -28,14 +28,16 @@ class ACO:
             length += self.distance[path[i]][path[i + 1]]
         return length
 
-    def _update_pheromone(self, path_list):
-        pheromones = np.zeros((self.n_cities, self.n_cities))
-        for path_length, path in path_list:
-            amount_pheromone = self.Q / path_length
-            for i in range(-1, self.n_cities - 1):
-                pheromones[path[i], path[i + 1]] += amount_pheromone
-                pheromones[path[i + 1], path[i]] += amount_pheromone
-        self.pheromone = self.pheromone * self.rho + pheromones
+    def _choose_city(self, current_city, available_cities):
+        city_probs = []
+        for i in available_cities:
+            pheromone = pow(self.pheromone[current_city][i], self.alpha)
+            distance = pow(self.distance[current_city][i], self.beta)
+            city_probs.append(pheromone / distance)
+        sum_weight = sum(city_probs)
+        city_probs = list(map(lambda x: x / sum_weight, city_probs))
+        next_city = np.random.choice(available_cities, p=city_probs)
+        return next_city
 
     def _ant_go(self):
         available_cities = list(range(self.n_cities))
@@ -53,85 +55,86 @@ class ACO:
 
         return path
 
-    def _choose_city(self, current_city, available_cities):
-        city_probs = []
-        for i in available_cities:
-            pheromone = pow(self.pheromone[current_city][i], self.alpha)
-            distance = pow(self.distance[current_city][i], self.beta)
-            city_probs.append(pheromone / distance)
-        sum_weight = sum(city_probs)
-        city_probs = list(map(lambda x: x / sum_weight, city_probs))
-        next_city = np.random.choice(available_cities, p=city_probs)
-        return next_city
-
     def search_once(self):
         path_list = []
-        cur_best_length = float('inf')
+        best_length = float('inf')
+        best_path = None
         for i in range(self.n_ants):
             path = self._ant_go()
-            path_length = self._calc_path_length(path)
-            path_list.append((path_length, path))
-
-            if path_length < cur_best_length:
-                cur_best_length = path_length
-
-            if path_length < self.best_path_length:
-                self.best_path_length = path_length
-                self.best_path = path
+            length = self._calc_path_length(path)
+            path_list.append((length, path))
+            if length < best_length:
+                best_length, best_path = length, path
         self._update_pheromone(path_list)
-        return self.best_path_length, self.best_path, cur_best_length
+        return best_length, best_path
 
-    def search(self, max_iter=200, verbose=None, visualize=False):
+    def search(self, max_iter=200, verbose=None, plot_interval=None):
         best_length = float('inf')
         best_path = None
         length_list = []
         for i in range(1, max_iter + 1):
-            length, path, cur_best_length = self.search_once()
-            length_list.append(cur_best_length)
-            # length_list.append(length)
+            length, path = self.search_once()
+            length_list.append(length)
 
             if length < best_length:
                 best_length, best_path = length, path
                 if verbose == 1:
-                    print(f'[Update] Iterate: {i:2d}, '
-                          f'Best length: {best_length:.6f}, '
-                          f'Best path: {path}')
-                if visualize:
-                    for i in range(-1, self.n_cities - 1):
-                        x = [cities[best_path[i]][0], cities[best_path[i + 1]][0]]
-                        y = [cities[best_path[i]][1], cities[best_path[i + 1]][1]]
-                        plt.plot(x, y)
-                    plt.title(f'Iterate: {i:2d},  Path length: {best_length:.6f}')
-                    plt.show()
+                    self._log(i, best_length, best_path)
 
             if verbose == 2:
-                print('Iterate: {i:2d}, '
-                      'Best length: {best_length:.6f}, '
-                      'Best path:', path)
+                self._log(i, best_length, best_path)
+            if plot_interval is not None\
+                    and plot_interval > 0\
+                    and i % plot_interval == 0:
+                plot_path(i, best_length, best_path, self.cities)
 
-        if visualize:
-            X = np.arange(1, max_iter + 1)
-            plt.plot(X, length_list)
-            plt.xlabel('Iterations')
-            plt.ylabel('Path length')
-            plt.title(f'Change of path length\nShortest length: {best_length:.6f}' )
-            plt.show()
+        if plot_interval is not None:
+            plot_result(length_list, iter_start=1)
         return best_length, best_path
+
+    def _update_pheromone(self, path_list):
+        pheromones = np.zeros((self.n_cities, self.n_cities))
+        for path_length, path in path_list:
+            amount_pheromone = self.Q / path_length
+            for i in range(-1, self.n_cities - 1):
+                pheromones[path[i], path[i + 1]] += amount_pheromone
+                pheromones[path[i + 1], path[i]] += amount_pheromone
+        self.pheromone = self.pheromone * self.rho + pheromones
+
+    def _log(self, iter_time, length, path):
+        print(f'Iterate: {iter_time}, Length: {length:.4f}, Path: {path}')
+
+
+def plot_path(iter_time, length, path, cities):
+    n_cities = len(cities)
+    for i in range(-1, n_cities - 1):
+        x = [cities[path[i]][0], cities[path[i + 1]][0]]
+        y = [cities[path[i]][1], cities[path[i + 1]][1]]
+        plt.plot(x, y)
+    plt.title(f'Iterate: {iter_time},  Path length: {length:.4f}')
+    plt.show()
+
+
+def plot_result(length_list, iter_start=1):
+    n_points = len(length_list)
+    x = list(range(iter_start, iter_start + n_points))
+    plt.plot(x, length_list)
+    plt.xlabel('Iterations')
+    plt.ylabel('Path length')
+    best_length = min(length_list)
+    plt.title(f'Final length: {best_length:.4f}')
+    plt.show()
 
 
 def load_data(file):
     with open(file, 'r') as f:
-        for i in range(6):
-            f.readline()
         lines = f.readlines()
-    cities = []
-    for i, line in enumerate(lines):
-        t = line[:-1].split(' ')
-        cities.append((float(t[1]), float(t[2])))
+    lines = list(map(lambda c: c.split(' '), lines[6:]))
+    cities = [(float(c[1]), float(c[2])) for c in lines]
     return cities
 
 
 if __name__ == '__main__':
     cities = load_data('berlin52.tsp')
     aco = ACO(cities, n_ants=50, alpha=1, beta=2, rho=0.5, Q=100)
-    aco.search(max_iter=200, verbose=1, visualize=True)
+    aco.search(max_iter=200, verbose=1, plot_interval=20)

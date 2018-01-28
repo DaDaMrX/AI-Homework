@@ -22,54 +22,6 @@ class ACO:
         self.best_path_length = float('inf')
         self.best_path = None
 
-    def search(self, max_iter=200, verbose=None, visualize=False):
-        best_length = float('inf')
-        best_path = None
-        length_list = []
-        for i in range(1, max_iter + 1):
-            length, path = self.search_once()
-            length_list.append(length)
-
-            if length < best_length:
-                best_length, best_path = length, path
-                if verbose == 1:
-                    print(f'[Update] Iterate: {i:2d}, '
-                          f'Best length: {best_length:.6f}, '
-                          f'Best path: {path}')
-                if visualize:
-                    for i in range(-1, self.n_cities - 1):
-                        x = [cities[best_path[i]][0], cities[best_path[i + 1]][0]]
-                        y = [cities[best_path[i]][1], cities[best_path[i + 1]][1]]
-                        plt.plot(x, y)
-                    plt.title(f'Iterate: {i:2d},  Path length: {best_length:.6f}')
-                    plt.show()
-
-            if verbose == 2:
-                print('Iterate: {i:2d}, '
-                      'Best length: {best_length:.6f}, '
-                      'Best path:', path)
-
-        if visualize:
-            X = np.arange(1, max_iter + 1)
-            plt.plot(X, length_list)
-            plt.xlabel('Iterations')
-            plt.ylabel('Path length')
-            plt.title(f'Change of path length\nShortest length: {best_length:.6f}' )
-            plt.show()
-        return best_length, best_path
-
-    def search_once(self):
-        path_list = []
-        for i in range(self.n_ants):
-            path = self._ant_go()
-            path_length = self._calc_path_length(path)
-            path_list.append((path_length, path))
-            if path_length < self.best_path_length:
-                self.best_path_length = path_length
-                self.best_path = path
-        self._update_pheromone(path_list)
-        return self.best_path_length, self.best_path
-
     def _calc_path_length(self, path):
         length = 0.0
         for i in range(-1, self.n_cities - 1):
@@ -111,6 +63,60 @@ class ACO:
         city_probs = list(map(lambda x: x / sum_weight, city_probs))
         next_city = np.random.choice(available_cities, p=city_probs)
         return next_city
+
+    def search_once(self):
+        path_list = []
+        cur_best_length = float('inf')
+        for i in range(self.n_ants):
+            path = self._ant_go()
+            path_length = self._calc_path_length(path)
+            path_list.append((path_length, path))
+
+            if path_length < cur_best_length:
+                cur_best_length = path_length
+
+            if path_length < self.best_path_length:
+                self.best_path_length = path_length
+                self.best_path = path
+        self._update_pheromone(path_list)
+        return self.best_path_length, self.best_path, cur_best_length
+
+    def search(self, max_iter=200, verbose=None, visualize=False):
+        best_length = float('inf')
+        best_path = None
+        length_list = []
+        for i in range(1, max_iter + 1):
+            length, path, cur_best_length = self.search_once()
+            length_list.append(cur_best_length)
+            # length_list.append(length)
+
+            if length < best_length:
+                best_length, best_path = length, path
+                if verbose == 1:
+                    print(f'[Update] Iterate: {i:2d}, '
+                          f'Best length: {best_length:.6f}, '
+                          f'Best path: {path}')
+                if visualize:
+                    for i in range(-1, self.n_cities - 1):
+                        x = [cities[best_path[i]][0], cities[best_path[i + 1]][0]]
+                        y = [cities[best_path[i]][1], cities[best_path[i + 1]][1]]
+                        plt.plot(x, y)
+                    plt.title(f'Iterate: {i:2d},  Path length: {best_length:.6f}')
+                    plt.show()
+
+            if verbose == 2:
+                print('Iterate: {i:2d}, '
+                      'Best length: {best_length:.6f}, '
+                      'Best path:', path)
+
+        if visualize:
+            X = np.arange(1, max_iter + 1)
+            plt.plot(X, length_list)
+            plt.xlabel('Iterations')
+            plt.ylabel('Path length')
+            plt.title(f'Change of path length\nShortest length: {best_length:.6f}' )
+            plt.show()
+        return best_length, best_path
 
 
 def load_data(file):

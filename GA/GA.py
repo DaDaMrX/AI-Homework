@@ -30,7 +30,7 @@ class Gene:
 
 class GA:
     def __init__(self, cities, n_genes=100, n_children=100,
-                 alpha=50, recombination_prob=0.9, mutation_prob=1):
+                 alpha=50, recombination_prob=0.9, mutation_prob=1.0):
         self.cities = cities
         self.n_cities = len(cities)
         self.distance = np.empty((self.n_cities, self.n_cities))
@@ -161,5 +161,5 @@ def load_data(file):
 if __name__ == '__main__':
     cities = load_data('berlin52.tsp')
     ga = GA(cities, n_genes=100, n_children=100, alpha=50,
-            recombination_prob=0.9, mutation_prob=1)
-    ga.evolve(max_iter=500, verbose=1, plot_interval=50)
+            recombination_prob=0.9, mutation_prob=1.0)
+    ga.evolve(max_iter=500, verbose=1, plot_interval=100)

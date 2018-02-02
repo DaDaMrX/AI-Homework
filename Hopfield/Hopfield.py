@@ -93,6 +93,7 @@ class Hopfield:
         print(f'Iterate: {iter_step}')
 
     def _plot_matrix(self, matrix, iter_step):
+        plt.figure(figsize=(5, 4))
         plt.imshow(matrix, cmap='hot',
                    vmin=0, vmax=1,
                    interpolation='nearest')
@@ -123,6 +124,6 @@ def load_data(file):
 if __name__ == '__main__':
     cities = load_data('burma14.tsp')
     hop = Hopfield(cities)
-    path = hop.update(1500, verbose=True, plot_iter=200)
+    path = hop.update(1400, verbose=True, plot_iter=200)
     print(path)
 
